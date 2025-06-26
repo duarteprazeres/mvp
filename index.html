@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NovaScore Pro Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* --- THEME & SETUP: Professional, Minimalist, High-Contrast --- */
+        :root {
+            --primary-accent: #111827;      /* The main color for active/important elements */
+            --primary-bg-light: #F3F4F6;   /* For subtle backgrounds like nav containers */
+            --text-primary: #111827;
+            --text-secondary: #4B5563;
+            --text-light: #6B7280;
+            --border-color: #E5E7EB;
+            --background-white: #FFFFFF;
+            --background-body: #F9FAFB;   /* A very light grey for the main page background */
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+            --danger-color: #DC2626;
+            --warning-color: #F97316;
+            --success-color: #16A34A;
+        }
+        body { margin: 0; font-family: 'Inter', sans-serif; background-color: var(--background-body); color: var(--text-primary); display: flex; height: 100vh; overflow: hidden; -webkit-font-smoothing: antialiased; }
+        * { box-sizing: border-box; }
+        a, button, .card, .nav-item, .user-profile, .segmented-control a { transition: all 0.2s ease-in-out; }
+
+        /* --- LAYOUT & RESPONSIVENESS --- */
+        .app-container { display: flex; width: 100%; height: 100%; }
+        .sidebar { width: 260px; height: 100%; display: flex; flex-direction: column; padding: 16px; border-right: 1px solid var(--border-color); flex-shrink: 0; background: var(--background-white); transition: margin-left 0.3s ease; }
+        .content-wrapper { flex-grow: 1; display: flex; flex-direction: column; height: 100%; }
+        .main-content-area { flex-grow: 1; padding: 24px 32px; overflow-y: auto; }
+        
+        @media (max-width: 1024px) {
+            .sidebar { position: absolute; z-index: 100; margin-left: -260px; }
+            .sidebar.is-open { margin-left: 0; box-shadow: var(--shadow-md); }
+            .content-wrapper { width: 100%; }
+            .main-content-area { padding: 16px; }
+            .top-header { padding: 12px 16px; }
+            .home-grid, .page-grid, .analysis-grid { grid-template-columns: 1fr !important; }
+        }
+
+        /* --- SIDEBAR --- */
+        .sidebar-header { display: flex; align-items: center; gap: 12px; padding: 16px 8px; flex-shrink: 0; }
+        .logo-icon { color: var(--primary-accent); }
+        .logo-text { font-size: 22px; font-weight: 700; }
+        .sidebar-nav { flex-grow: 1; display: flex; flex-direction: column; margin-top: 16px; }
+        .nav-group { display: flex; flex-direction: column; gap: 4px; }
+        .nav-group-title { padding: 16px 12px 8px; font-size: 12px; font-weight: 600; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.05em; }
+        .nav-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-radius: 8px; text-decoration: none; color: var(--text-secondary); font-weight: 500; font-size: 15px; }
+        .nav-item-content { display: flex; align-items: center; gap: 12px; }
+        .nav-item .icon { width: 20px; height: 20px; color: var(--text-light); }
+        .nav-item:hover { background-color: var(--primary-bg-light); color: var(--text-primary); }
+        .nav-item.active { background-color: var(--primary-accent); color: white; font-weight: 600; }
+        .nav-item.active .icon { color: white; }
+        .user-profile { flex-shrink: 0; display: flex; align-items: center; gap: 12px; padding: 8px; margin-top: 16px; border-radius: 8px; }
+        .user-profile:hover { background-color: var(--primary-bg-light); cursor: pointer; }
+        .user-profile .avatar { width: 40px; height: 40px; border-radius: 50%; background-size: cover; background-position: center; }
+        .user-profile .user-info { flex-grow: 1; line-height: 1.4; }
+        .user-profile .user-name { font-weight: 600; font-size: 14px; }
+
+        /* --- TOP HEADER --- */
+        .top-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 32px; border-bottom: 1px solid var(--border-color); background-color: var(--background-white); }
+        .header-left { display: flex; align-items: center; gap: 16px; }
+        .menu-toggle { display: none; background: none; border: none; cursor: pointer; padding: 4px; }
+        @media (max-width: 1024px) { .menu-toggle { display: block; } }
+        .segmented-control { display: flex; background-color: var(--primary-bg-light); padding: 4px; border-radius: 8px; }
+        .segmented-control a, .segmented-control button { padding: 6px 16px; text-decoration: none; color: var(--text-secondary); font-weight: 500; font-size: 14px; border-radius: 6px; background: none; border: none; cursor: pointer; }
+        .segmented-control a.active, .segmented-control button.active { background-color: var(--background-white); color: var(--text-primary); box-shadow: var(--shadow-sm); }
+        .search-bar { display: flex; align-items: center; gap: 8px; border: 1px solid var(--border-color); border-radius: 8px; padding: 8px 12px; width: 320px; }
+        .search-bar:focus-within { border-color: var(--primary-accent); box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.2); }
+        .search-bar input { border: none; outline: none; width: 100%; font-size: 15px; background: transparent; }
+
+        /* --- REUSABLE COMPONENTS --- */
+        .card { background: var(--background-white); border: 1px solid var(--border-color); box-shadow: var(--shadow-sm); border-radius: 12px; padding: 24px; }
+        .panel { background: var(--background-white); border: 1px solid var(--border-color); box-shadow: var(--shadow-sm); border-radius: 12px; overflow: hidden; }
+        .panel-header { font-size: 18px; font-weight: 600; padding: 20px 24px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
+        .panel-content { padding: 8px 24px 16px; }
+        .list-item { display: flex; align-items: center; gap: 16px; padding: 16px 0; }
+        .list-item:not(:last-child) { border-bottom: 1px solid #F3F4F6; }
+        .list-item-title { font-weight: 500; }
+        .list-item-subtitle { color: var(--text-light); margin-top: 2px; font-size: 14px; }
+        .page-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }
+        .data-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        .data-table th, .data-table td { padding: 14px; text-align: left; border-bottom: 1px solid var(--border-color); white-space: nowrap; }
+        .data-table th { color: var(--text-light); font-weight: 500; font-size: 12px; text-transform: uppercase; background-color: var(--background-body); }
+        .data-table th.sortable { cursor: pointer; }
+        .data-table th.sortable:hover { color: var(--text-primary); }
+        .data-table tbody tr:hover { background-color: var(--background-body); }
+        .table-player-cell { display: flex; align-items: center; gap: 12px; }
+        .table-player-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
+        .squad-controls { display: flex; align-items: center; gap: 8px; padding: 16px; background: var(--background-body); border-bottom: 1px solid var(--border-color); }
+        .squad-controls button { background: none; border: 1px solid var(--border-color); padding: 6px 12px; border-radius: 6px; font-weight: 500; cursor: pointer; }
+        .squad-controls button:hover { background: #e5e7eb; }
+        .squad-controls button.active { background: var(--primary-accent); color: white; border-color: var(--primary-accent); }
+        .status-pill { padding: 4px 10px; border-radius: 99px; font-size: 12px; font-weight: 500; display: inline-block; }
+        .status-pill.high, .status-pill.treatment { background-color: #FEE2E2; color: #B91C1C; }
+        .status-pill.medium, .status-pill.light-training { background-color: #FEF3C7; color: #92400E; }
+        .status-pill.low, .status-pill.resting { background-color: #D1FAE5; color: #065F46; }
+
+        /* --- PAGE-SPECIFIC STYLES --- */
+        .home-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; align-items: flex-start; }
+        .pitch { display: grid; background-color: #348E3D; background-image: url('https://i.imgur.com/gH4lF5c.png'); background-size: cover; background-position: center; aspect-ratio: 7 / 5; border-radius: 8px; padding: 2%;
+            grid-template-columns: repeat(5, 1fr); grid-template-rows: repeat(7, 1fr);
+            grid-template-areas: ".  lw .   rw  ." ".  .  st  .   ." "cm2 .  .   . cm1" ".  .  cdm .   ." "lb .  .   .  rb" ". cb2 . cb1 ." ".  .  gk  .   ." ;
+        }
+        .player-on-pitch { grid-area: var(--pos); display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .player-on-pitch .avatar { width: 52px; height: 52px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.4); background-size: cover; background-position: center; background-color: #fff; }
+        .player-on-pitch .name { font-size: 12px; font-weight: 600; color: white; background-color: rgba(0,0,0,0.6); padding: 2px 8px; border-radius: 4px; margin-top: 6px; text-align: center; }
+        .chart-container { position: relative; height: 350px; width: 100%; }
+        .stat-card { padding: 20px; text-align: center; }
+        .stat-card .value { font-size: 28px; font-weight: 700; margin-top: 4px; }
+        .stat-card .subtext { font-size: 14px; color: var(--text-light); }
+        
+        /* Squad Analysis Specific */
+        .analysis-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+        .comparison-selector select { width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); font-size: 15px; }
+        .comparison-table { width: 100%; margin-top: 16px; border-collapse: collapse; }
+        .comparison-table td { padding: 10px; border-bottom: 1px solid var(--border-color); }
+        .comparison-table td:first-child { font-weight: 500; }
+        .comparison-table td:not(:first-child) { text-align: center; }
+        
+        /* Finance Specific */
+        .budget-bar { background: var(--primary-bg-light); border-radius: 8px; overflow: hidden; height: 20px; }
+        .budget-bar-inner { height: 100%; background: var(--primary-accent); transition: width 0.5s ease; }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar is complete -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <svg class="logo-icon" width="32" height="32" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M24 6L11.5 13.5V28.5L24 36L36.5 28.5V13.5L24 6Z" stroke="currentColor" stroke-width="4"/><path d="M11.5 13.5L24 21L36.5 13.5" stroke="currentColor" stroke-width="4"/><path d="M24 36V21" stroke="currentColor" stroke-width="4"/></svg>
+                <span class="logo-text">NovaScore</span>
+            </div>
+            <nav class="sidebar-nav">
+                <div class="nav-group">
+                    <a href="#" class="nav-item active" data-page="home"><div class="nav-item-content"><svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>Home</div></a>
+                    <a href="#" class="nav-item" data-page="scouting"><div class="nav-item-content"><svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>Scouting</div></a>
+                    <a href="#" class="nav-item" data-page="squad"><div class="nav-item-content"><svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>Squad</div></a>
+                    <a href="#" class="nav-item" data-page="medical"><div class="nav-item-content"><svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>Medical</div></a>
+                    <a href="#" class="nav-item" data-page="finance"><div class="nav-item-content"><svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v.01M12 6v-1.131l-.001.001L12 5H9.5a2.5 2.5 0 00-2.5 2.5V17a2.5 2.5 0 002.5 2.5h5A2.5 2.5 0 0017 17v-5a2.5 2.5 0 00-2.5-2.5H12z" /></svg>Finance</div></a>
+                </div>
+                <div style="flex-grow: 1;"></div>
+                <div class="nav-group">
+                    <div class="nav-group-title">Tools</div>
+                    <a href="#" class="nav-item" data-page="user"><div class="nav-item-content"><svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>User Profile</div></a>
+                </div>
+            </nav>
+            <div class="user-profile">
+                <div class="avatar" style="background-image: url('https://i.pravatar.cc/40?u=frankie')"></div>
+                <div class="user-info">
+                    <div class="user-name">Frankie Sullivan</div><div class="user-handle">Sporting Director</div>
+                </div>
+            </div>
+        </aside>
+        
+        <div class="content-wrapper">
+            <header class="top-header">
+                 <div class="header-left">
+                    <button class="menu-toggle" id="menu-toggle" aria-label="Toggle Menu">
+                        <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                    </button>
+                    <h1 id="page-title" class="page-title">Dashboard</h1>
+                    <div class="segmented-control" id="headerSubnav"></div>
+                </div>
+                <div class="header-right">
+                    <div class="search-bar">
+                        <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:20px; color:var(--text-light);"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                        <input type="text" id="mainSearch" placeholder="Search players, reports...">
+                    </div>
+                </div>
+            </header>
+            <main id="main-content-area" class="main-content-area">
+                <!-- Content is rendered here by JavaScript -->
+            </main>
+        </div>
+    </div>
+
+    <script>
+    // --- BEST PRACTICE: USE STRICT MODE ---
+    "use strict";
+
+    // --- CONFIGURATION OBJECT ---
+    const Config = {
+        pageConfig: { 
+            home: { dashboard: 'Dashboard', calendar: 'Calendar', reports: 'Reports' },
+            squad: { list: 'List', tactics: 'Tactics', analysis: 'Analysis' },
+            scouting: { dashboard: 'Dashboard', shadow_team: 'Shadow Team', network: 'Network' },
+            finance: { overview: 'Overview', income_expense: 'Income/Expense', budgets: 'Budgets' },
+            medical: { overview: 'Overview', load_management: 'Player Load' }
+        },
+        pageTitles: { home: 'Home', scouting: 'Scouting', squad: 'Squad', medical: 'Medical Center', finance: 'Finance', user: 'User Profile' },
+        radarChartOptions: {
+            elements: { line: { borderWidth: 3 } },
+            scales: { r: { angleLines: { display: false }, suggestedMin: 50, suggestedMax: 100, pointLabels: { font: { size: 14 } } } },
+            plugins: { legend: { position: 'top' } }
+        }
+    };
+
+    // --- APPLICATION STATE ---
+    const State = {
+        currentPage: 'home',
+        currentSubPage: 'dashboard',
+        squadSort: { key: 'rating', dir: 'desc' },
+        charts: {},
+        isSidebarOpen: false
+    };
+
+    // --- UTILITY FUNCTIONS ---
+    const Utils = {
+        formatCurrency: (value) => new Intl.NumberFormat('en-DE', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0 }).format(value),
+        getInitials: (name) => name.split(' ').map(n => n[0]).join(''),
+        average: (arr) => arr.reduce((a, b) => a + b, 0) / arr.length
+    };
+
+    // --- SIMULATED API / DATABASE ---
+    const API = {
+        _DB: {
+            squadData: {
+                // ... (Massive data object will be placed here) ...
+            },
+            // ... (Other data objects: homeData, scoutingData, etc.) ...
+        },
+        getData: function(page) {
+            // In a real app, this would be an async fetch call.
+            return this._DB[`${page}Data`];
+        }
+    };
+    // Populate the simulated database
+    API._DB.squadData = { 
+        players: [
+            // GOALKEEPERS
+            { id: 31, name: 'Ederson Moraes', position: 'Goalkeeper', age: 30, status: 'Fit', photoUrl: 'https://resources.premierleague.com/premierleague/photos/players/250x250/p177306.png', contract: { salary: 180000, expiry: '2026-06-30' }, performance: { saves: 35, cleanSheets: 5, rating: 7.1 }, attributes: { physical: { agility: 88, reflexes: 89, speed: 60 }, technical: { handling: 85, kicking: 93, passing: 91 }, mental: { composure: 70, positioning: 88, vision: 68 } } },
+            { id: 18, name: 'Stefan Ortega', position: 'Goalkeeper', age: 31, status: 'Fit', photoUrl: 'https://resources.premierleague.com/premierleague/photos/players/250x250/p200803.png', contract: { salary: 55000, expiry: '2025-06-30' }, performance: { saves: 10, cleanSheets: 2, rating: 6.8 }, attributes: { physical: { agility: 85, reflexes: 86, speed: 55 }, technical: { handling: 82, kicking: 75, passing: 78 }, mental: { composure: 65, positioning: 84, vision: 50 } } },
+            // DEFENDERS
+            { id: 2, name: 'Kyle Walker', position: 'Defender', age: 33, status: 'Fit', photoUrl: 'https://resources.premierleague.com/premierleague/photos/players/250x250/p58621.png', contract: { salary: 175000, expiry: '2026-06-30' }, performance: { tackles: 22, interceptions: 15, rating: 7.2 }, attributes: { physical: { agility: 82, reflexes: 0, speed: 94 }, technical: { crossing: 78, dribbling: 79, tackling: 83 }, mental: { composure: 80, positioning: 82, vision: 70 } } },
+            { id: 3, name: 'Rúben Dias', position: 'Defender', age: 26, status: 'Fit', photoUrl: 'https://resources.premierleague.com/premierleague/photos/players/250x250/p216447.png', contract: { salary: 220000, expiry: '2027-06-30' }, performance: { tackles: 30, interceptions: 25, rating: 7.5 }, attributes: { physical: { agility: 65, reflexes: 0, speed: 70 }, technical: { heading: 88, tackling: 89, passing: 81 }, mental: { composure: 85, positioning: 91, vision: 65 } } },
+            { id: 5, name: 'John Stones', position: 'Defender', age: 29, status: 'Injured', photoUrl: 'https://resources.premierleague.com/premierleague/photos/players/250x250/p102847.png', contract: { salary: 280000, expiry: '2026-06-30' }, performance: { tackles: 12, interceptions: 10, rating: 7.3 }, attributes: { physical: { agility: 75, reflexes: 0, speed: 76 }, technical: { dribbling: 80, tackling: 85, passing: 88 }, mental: { composure: 90, positioning: 86, vision: 80 } } },
+            { id: 6, name: 'Nathan Aké', position: 'Defender', age: 28, status: 'Fit', photoUrl: 'https://resources.premierleague.com/premierleague/photos/players/250x250/p125510.png', contract: { salary: 160000, expiry: '2027-06-30' }, performance: { tackles: 25, interceptions: 20, rating: 7.1 }, attributes: { physical: { agility: 78, reflexes: 0, speed: 79 }, technical: { heading: 84, tackling: 86, passing: 82 }, mental: { composure: 82, positioning: 88, vision: 70 } } },
+            { id: 24, name: 'Joško Gvardiol', position: 'Defender', age: 21, status: 'Fit', photoUrl: 'https://resources.premierleague.com/premierleague/photos/players/250x250/p466958.png', contract: { salary: 200000, expiry: '2028-06-30' }, performance: { tackles: 28, interceptions: 22, rating: 7.4 }, attributes: { physical: { agility: 79, reflexes: 0, speed: 84 }, technical: { dribbling: 81, tackling: 88, passing: 84 }, mental: { composure: 84, positioning: 87, vision: 72 } } },
+            { id: 25, name: 'Manuel Akanji', position: 'Defender', age: 28, status: 'Fit', photoUrl: 'https://resources.premierleague.com/premierleague/photos/players/250x250/p201103.png', contract: { salary: 180000, expiry: '2027-06-30' }, performance: { tackles: 20, interceptions: 18, rating: 7.0 }, attributes: { physical: { agility: 77, reflexes: 0, speed: 82 }, technical: { heading: 80, tackling: 85, passing: 86 }, mental: { composure: 85, positioning: 85, vision: 75 } } },
+            // MIDFIELDERS
+            { id: 8, name: 'Mateo Kovačić', position: 'Midfielder', age: 29, status: 'Fit', photoUrl: 'https://resources.premierleague.com/premierleague/photos/players/250x250/p80226.png', contract: { salary: 150000, expiry: '2027-06-30' }, performance: { goals: 2, assists: 3, rating: 7.2 }, attributes: { physical: { agility: 90, reflexes: 0, speed: 80 }, technical: { dribbling: 92, passing: 88, shooting: 75 }, mental: { composure: 88, positioning: 80, vision: 86 } } },
+            { id: 16, name: 'Rodri', position: 'Midfielder', age: 27, status: 'Fit', photoUrl: 'https://resources.premierleague.com/premierleague/photos/players/250x250/p220688.png', contract: { salary: 220000, expiry: '2027-06-30' }, performance: { goals: 4, assists: 6, rating: 8.3 }, attributes: { physical: { agility: 70, reflexes: 0, speed: 68 }, technical: { dribbling: 82, passing: 93, shooting: 80 }, mental: { composure: 92, positioning: 90, vision: 88 } } },
+            { id: 17, name: 'Kevin De Bruyne', position: 'Midfielder', age: 32, status: 'Fit', photoUrl: 'https://resources.premierleague.com/premierleague/photos/players/250x250/p61366.png', contract: { salary: 425000, expiry: '2025-06-30' }, performance: { goals: 6, assists: 11, rating: 8.5 }, attributes: { physical: { agility: 80, reflexes: 0, speed: 78 }, technical: { crossing: 95, passing: 96, shooting: 90 }, mental: { composure: 88, positioning: 88, vision: 97 } } },
+            { id: 20, name: 'Bernardo Silva', position: 'Midfielder', age: 29, status: 'Fit', photoUrl: 'https://resources.premierleague.com/premierleague/photos/players/250x250/p165809.png', contract: { salary: 300000, expiry: '2026-06-30' }, performance: { goals: 5, assists: 7, rating: 8.0 }, attributes: { physical: { agility: 94, reflexes: 0, speed: 82 }, technical: { dribbling: 95, passing: 89, shooting: 81 }, mental: { composure: 90, positioning: 87, vision: 90 } } },
+            { id: 27, name: 'Matheus Nunes', position: 'Midfielder', age: 25, status: 'Fit', photoUrl: 'https://resources.premierleague.com/premierleague/photos/players/250x250/p440964.png', contract: { salary: 130000, expiry: '2028-06-30' }, performance: { goals: 1, assists: 2, rating: 6.9 }, attributes: { physical: { agility: 88, reflexes: 0, speed: 86 }, technical: { dribbling: 89, passing: 83, shooting: 74 }, mental: { composure: 80, positioning: 81, vision: 82 } } },
+            { id: 47, name: 'Phil Foden', position: 'Midfielder', age: 23, status: 'Fit', photoUrl: 'https://resources.premierleague.com/premierleague/photos/players/250x250/p209244.png', contract: { salary: 250000, expiry: '2028-06-30' }, performance: { goals: 9, assists: 6, rating: 7.9 }, attributes: { physical: { agility: 92, reflexes: 0, speed: 84 }, technical: { dribbling: 91, passing: 87, shooting: 86 }, mental: { composure: 86, positioning: 88, vision: 89 } } },
+            // FORWARDS
+            { id: 9, name: 'Erling Haaland', position: 'Forward', age: 23, status: 'Fit', photoUrl: 'https://resources.premierleague.com/premierleague/photos/players/250x250/p223094.png', contract: { salary: 450000, expiry: '2027-06-30' }, performance: { goals: 18, assists: 4, rating: 8.1 }, attributes: { physical: { agility: 78, reflexes: 0, speed: 92 }, technical: { dribbling: 75, heading: 85, shooting: 96 }, mental: { composure: 88, positioning: 95, vision: 70 } } },
+            { id: 10, name: 'Jack Grealish', position: 'Forward', age: 28, status: 'Fit', photoUrl: 'https://resources.premierleague.com/premierleague/photos/players/250x250/p114242.png', contract: { salary: 300000, expiry: '2027-06-30' }, performance: { goals: 3, assists: 5, rating: 7.4 }, attributes: { physical: { agility: 88, reflexes: 0, speed: 78 }, technical: { crossing: 85, dribbling: 93, passing: 86 }, mental: { composure: 90, positioning: 84, vision: 87 } } },
+            { id: 11, name: 'Jérémy Doku', position: 'Forward', age: 21, status: 'Fit', photoUrl: 'https://resources.premierleague.com/premierleague/photos/players/250x250/p467252.png', contract: { salary: 100000, expiry: '2028-06-30' }, performance: { goals: 4, assists: 6, rating: 7.5 }, attributes: { physical: { agility: 96, reflexes: 0, speed: 95 }, technical: { crossing: 78, dribbling: 96, shooting: 80 }, mental: { composure: 78, positioning: 82, vision: 80 } } },
+            { id: 19, name: 'Julián Álvarez', position: 'Forward', age: 24, status: 'Fit', photoUrl: 'https://resources.premierleague.com/premierleague/photos/players/250x250/p466849.png', contract: { salary: 150000, expiry: '2028-06-30' }, performance: { goals: 8, assists: 8, rating: 7.7 }, attributes: { physical: { agility: 85, reflexes: 0, speed: 84 }, technical: { dribbling: 82, passing: 80, shooting: 88 }, mental: { composure: 86, positioning: 90, vision: 81 } } },
+        ],
+        tactic: { formation: '4-3-3', startingXI: [ { id: 31, pos: 'gk' }, { id: 2, pos: 'rb' }, { id: 3, pos: 'cb1' }, { id: 24, pos: 'cb2' }, { id: 6, pos: 'lb' }, { id: 16, pos: 'cdm' }, { id: 17, pos: 'cm1' }, { id: 20, pos: 'cm2' }, { id: 47, pos: 'rw' }, { id: 9, pos: 'st' }, { id: 11, pos: 'lw' } ] },
+        teamAnalysis: { offensive: { labels: ['Goal Conversion %', 'xG/Shot', 'Shots on Target %', 'Successful Dribbles', 'Key Passes'], datasets: [ { label: 'NovaScore FC', data: [18, 0.12, 45, 12, 15], backgroundColor: 'rgba(17, 24, 39, 0.2)', borderColor: 'rgba(17, 24, 39, 1)', pointBackgroundColor: 'rgba(17, 24, 39, 1)' }, { label: 'League Average', data: [12, 0.09, 35, 8, 11], backgroundColor: 'rgba(107, 114, 128, 0.2)', borderColor: 'rgba(107, 114, 128, 1)', pointBackgroundColor: 'rgba(107, 114, 128, 1)' } ] }, defensive: { labels: ['Tackle Success %', 'Interceptions', 'Pressures', 'Aerial Duels Won %', 'Clearances'], datasets: [ { label: 'NovaScore FC', data: [75, 14, 150, 60, 25], backgroundColor: 'rgba(34, 197, 94, 0.2)', borderColor: 'rgba(34, 197, 94, 1)', pointBackgroundColor: 'rgba(34, 197, 94, 1)' }, { label: 'League Average', data: [65, 11, 120, 52, 22], backgroundColor: 'rgba(107, 114, 128, 0.2)', borderColor: 'rgba(107, 114, 128, 1)', pointBackgroundColor: 'rgba(107, 114, 128, 1)' } ] } }
+    };
+    API._DB.homeData = { actionableNotifications: [ { id: 1, title: 'Approve youth player contract for Alex Johnson', type: 'Contracts', dueDate: '2 days', urgency: 'high' }, { id: 2, title: 'Prepare for pre-match press conference', type: 'Media', dueDate: 'Tomorrow', urgency: 'high' }, { id: 3, title: 'Finalize travel budget for away match', type: 'Finance', dueDate: '4 days', urgency: 'medium' }, { id: 4, title: 'Review weekly scouting reports', type: 'Scouting', dueDate: 'This week', urgency: 'low' } ], leagueTable: [ { position: 1, teamName: 'Real Madrid', played: 12, won: 10, drawn: 1, lost: 1, goalDifference: '+25', points: 31, logoUrl: 'https://ssl.gstatic.com/onebox/media/sports/logos/Th4fAVAZeCJWRcKoLW7koA_96x96.png' }, { position: 2, teamName: 'FC Barcelona', played: 12, won: 9, drawn: 2, lost: 1, goalDifference: '+20', points: 29, logoUrl: 'https://ssl.gstatic.com/onebox/media/sports/logos/paYnEE8hcrP96neHRNofhQ_96x96.png' }, { position: 3, teamName: 'NovaScore FC', played: 12, won: 8, drawn: 2, lost: 2, goalDifference: '+15', points: 26, logoUrl: 'special_badge' }, { position: 4, teamName: 'Girona FC', played: 12, won: 8, drawn: 2, lost: 2, goalDifference: '+11', points: 26, logoUrl: 'https://ssl.gstatic.com/onebox/media/sports/logos/sIis-gJj3n1130vXp1t2-w_96x96.png' }, { position: 5, teamName: 'Atlético Madrid', played: 12, won: 7, drawn: 3, lost: 2, goalDifference: '+12', points: 24, logoUrl: 'https://ssl.gstatic.com/onebox/media/sports/logos/srAAE0bOnA-TDjXpPA1T1w_96x96.png' }, ], nextMatch: { opponentName: 'FC Barcelona', opponentLogoUrl: 'https://ssl.gstatic.com/onebox/media/sports/logos/paYnEE8hcrP96neHRNofhQ_96x96.png', competition: 'La Liga - Matchday 13', venue: 'Home', date: 'Saturday, 18 Nov 2024', time: '20:00 GMT', previewText: 'A crucial top-of-the-table clash. Focus will be on controlling their midfield trio.' }, medicalSummary: [ { playerName: 'John Stones', injuryType: 'Hamstring Strain', expectedReturn: 'Approx. 2 weeks', status: 'In Treatment', statusClass: 'treatment' }, { playerName: 'Phil Foden', injuryType: 'Ankle Sprain', expectedReturn: '1 week', status: 'Light Training', statusClass: 'light-training' }, { playerName: 'Kevin De Bruyne', injuryType: 'Fatigue', expectedReturn: '2-3 days', status: 'Resting', statusClass: 'resting' } ], financialSummary: { status: 'Good', index: 'Wages are currently at 55% of revenue, well within the target range. Transfer budget for January is healthy.' }, reports: [ { title: 'Post-Match Analysis vs. Real Madrid', author: 'Pep Guardiola', date: 'Nov 12, 2024' }, { title: 'Quarterly Youth Academy Progress', author: 'Enzo Maresca', date: 'Nov 10, 2024' }, ], calendarEvents: [ { day: 18, type: 'match', title: 'vs Barcelona' }, { day: 21, type: 'training', title: 'Full Training' }, { day: 22, type: 'match', title: 'vs Sevilla' }, { day: 25, type: 'media', title: 'Presser' }, { day: 26, type: 'match', title: 'vs Inter' } ]};
+    API._DB.scoutingData = { stats: [ { title: 'Scouted Players', value: '78', subtext: '+25% MoM' }, { title: 'Active Targets', value: '15', subtext: '-2 from last week' }, { title: 'Reports Filed', value: '145', subtext: '+31% MoM' } ], tasks: [ { title: "Watch Florian Wirtz (Bayer Leverkusen)", category: 'Priority Target' }, { title: "Analyze U-21 South American Championship", category: 'Tournament' }, { title: "Finalize report on Leny Yoro", category: 'Paperwork' } ], shadowTeam: [ {id: 101, name: 'Leny Yoro', position: 'Defender', age: 18, club: 'Lille OSC', rating: 8.8, photoUrl: 'https://img.a.transfermarkt.technology/portrait/header/811093-1698305072.jpg?lm=1', preferredPosition: 'CB', gridArea: 'cb1'}, {id: 102, name: 'Roony Bardghji', position: 'Winger', age: 18, club: 'FC Copenhagen', rating: 8.5, photoUrl: 'https://img.a.transfermarkt.technology/portrait/header/792211-1699965935.jpg?lm=1', preferredPosition: 'RW', gridArea: 'rw'}, {id: 103, name: 'António Silva', position: 'Defender', age: 20, club: 'SL Benfica', rating: 8.9, photoUrl: 'https://img.a.transfermarkt.technology/portrait/header/923348-1662991097.jpg?lm=1', preferredPosition: 'CB', gridArea: 'cb2'}, {id: 104, name: 'João Neves', position: 'Midfielder', age: 19, club: 'SL Benfica', rating: 9.0, photoUrl: 'https://img.a.transfermarkt.technology/portrait/header/923351-1683038670.jpg?lm=1', preferredPosition: 'CM', gridArea: 'cm1'}, {id: 105, name: 'Florian Wirtz', position: 'Midfielder', age: 21, club: 'Bayer Leverkusen', rating: 9.2, photoUrl: 'https://img.a.transfermarkt.technology/portrait/header/598577-1698227845.jpg?lm=1', preferredPosition: 'CM', gridArea: 'cm2'}, {id: 106, name: 'Benjamin Šeško', position: 'Forward', age: 20, club: 'RB Leipzig', rating: 8.7, photoUrl: 'https://img.a.transfermarkt.technology/portrait/header/627442-1688975314.jpg?lm=1', preferredPosition: 'ST', gridArea: 'st'}, {id: 107, name: 'Giorgi Mamardashvili', position: 'Goalkeeper', age: 23, club: 'Valencia CF', rating: 8.6, photoUrl: 'https://img.a.transfermarkt.technology/portrait/header/598263-1657102874.jpg?lm=1', preferredPosition: 'GK', gridArea: 'gk'}, ], scoutNetwork: [{name: 'Javier Ribalta', region: 'South America', targets: 5}, {name: 'David Webb', region: 'Central Europe', targets: 4}, {name: 'Lee Congerton', region: 'Benelux & France', targets: 6}]};
+    API._DB.financeData = { summary: [ { title: 'Total Revenue', value: '€780M', subtext: '+11% YoY' }, { title: 'Total Expenses', value: '€650M', subtext: 'Incl. €440M wages' }, { title: 'Net Profit', value: '+€130M', subtext: 'Exceeding projections by 15%' } ], income: [ { source: 'Broadcast Rights', amount: 310000000 }, { source: 'Sponsorships & Commercial', amount: 280000000 }, { source: 'Match Day & Hospitality', amount: 150000000 }, { source: 'Player Sales', amount: 40000000 } ], expenses: [ { category: 'Player & Staff Wages', amount: 440000000 }, { category: 'Transfer Amortization', amount: 110000000 }, { category: 'Operating & Match Day Costs', amount: 80000000 }, { category: 'Taxes & Other', amount: 20000000 } ], budgets: { wage: { total: 480000000, used: 440000000 }, transfer: { total: 150000000, used: 60000000 } } };
+    API._DB.medicalData = { stats: [ { title: 'Currently Injured', value: '3', subtext: '1 in full treatment' }, { title: 'Players At Risk', value: '5', subtext: 'High training load' }, { title: 'Avg. Recovery Time', value: '12 Days', subtext: 'Down from 15 last season' } ], injuredList: [ { name: 'John Stones', injury: 'Hamstring Strain', status: 'In Treatment', statusClass: 'high', returnDate: '2 weeks' }, { name: 'Jérémy Doku', injury: 'Minor Knock', status: 'Light Training', statusClass: 'medium', returnDate: '4-5 days' }, { name: 'Bernardo Silva', injury: 'Fatigue', status: 'Resting', statusClass: 'low', returnDate: '1-2 days' }, ], playerLoad: [ { name: 'Rodri', load: 'Very High', risk: 'high', gamesPlayed: 15 }, { name: 'Kyle Walker', load: 'High', risk: 'high', gamesPlayed: 14 }, { name: 'Erling Haaland', load: 'High', risk: 'medium', gamesPlayed: 15 }, { name: 'Phil Foden', load: 'Medium', risk: 'low', gamesPlayed: 14 }, { name: 'Rúben Dias', load: 'Medium', risk: 'low', gamesPlayed: 13 } ] };
+    API._DB.userData = { profile: { name: 'Frankie Sullivan', role: 'Sporting Director', email: 'frankie@novascore.io', avatarUrl: 'https://i.pravatar.cc/96?u=frankie' }, activity: [ { action: 'Updated target list with F. Wirtz', timestamp: '2 hours ago' }, { action: 'Approved medical report for J. Stones', timestamp: 'Yesterday' }, { action: 'Viewed financial summary Q3', timestamp: '3 days ago' } ] };
+
+    // --- DOM ELEMENT REFERENCES ---
+    const DOM = {
+        sidebar: document.getElementById('sidebar'),
+        mainContentArea: document.getElementById('main-content-area'),
+        pageTitle: document.getElementById('page-title'),
+        subnavContainer: document.getElementById('headerSubnav'),
+        menuToggle: document.getElementById('menu-toggle')
+    };
+
+    // --- UI COMPONENT GENERATORS ---
+    const UI = {
+        destroyAllCharts: () => { Object.values(State.charts).forEach(chart => chart.destroy()); State.charts = {}; },
+
+        createStatCards: (stats) => `<div class="page-grid">${stats.map(stat => `<div class="card stat-card"><div class="title" style="font-weight: 500;">${stat.title}</div><div class="value">${stat.value}</div><div class="subtext">${stat.subtext}</div></div>`).join('')}</div>`,
+
+        createRadarChart: (canvasId, chartData, options = Config.radarChartOptions) => {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            State.charts[canvasId] = new Chart(ctx, { type: 'radar', data: chartData, options });
+        },
+        
+        createDonutChart: (canvasId, chartData, title) => {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            State.charts[canvasId] = new Chart(ctx, {
+                type: 'doughnut',
+                data: chartData,
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' }, title: { display: true, text: title, font: { size: 16 } } } }
+            });
+        },
+
+        createBarChart: (canvasId, chartData, title) => {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            State.charts[canvasId] = new Chart(ctx, {
+                type: 'bar',
+                data: chartData,
+                options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', scales: { x: { beginAtZero: true } }, plugins: { legend: { display: false }, title: { display: true, text: title, font: {size: 16} } } }
+            });
+        },
+
+        createPlayerTable: (players, sortKey, sortDir) => {
+            const sortedPlayers = [...players].sort((a, b) => {
+                let valA, valB;
+                if (['rating', 'goals', 'assists'].includes(sortKey)) { valA = a.performance[sortKey] ?? 0; valB = b.performance[sortKey] ?? 0; }
+                else if (sortKey === 'salary') { valA = a.contract.salary; valB = b.contract.salary; }
+                else { valA = a[sortKey]; valB = b[sortKey]; }
+
+                if (typeof valA === 'string') return sortDir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                return sortDir === 'asc' ? valA - valB : valB - valA;
+            });
+            
+            let tableHTML = `<div class="squad-controls">
+                <span>Sort by:</span>
+                <button class="${sortKey === 'rating' ? 'active' : ''}" data-sort="rating">Rating</button>
+                <button class="${sortKey === 'name' ? 'active' : ''}" data-sort="name">Name</button>
+                <button class="${sortKey === 'salary' ? 'active' : ''}" data-sort="salary">Salary</button>
+            </div>
+            <div style="overflow-x: auto;">
+            <table class="data-table"><thead><tr><th class="sortable" data-sort="name">Name</th><th class="sortable" data-sort="position">Position</th><th>Age</th><th>Status</th><th class="sortable" data-sort="salary">Salary/w</th><th>Expiry</th><th class="sortable" data-sort="rating">Rtg</th></tr></thead><tbody>`;
+            tableHTML += sortedPlayers.map(p => `<tr>
+                <td><div class="table-player-cell"><img src="${p.photoUrl}" class="table-player-avatar" alt="${p.name}">${p.name}</div></td>
+                <td>${p.position}</td><td>${p.age}</td><td><span class="status-pill ${p.status.toLowerCase()}" title="${p.status}">${p.status}</span></td>
+                <td>${Utils.formatCurrency(p.contract.salary)}</td><td>${p.contract.expiry}</td><td><strong>${p.performance.rating}</strong></td>
+            </tr>`).join('');
+            return tableHTML + '</tbody></table></div>';
+        },
+
+        createPitch: (players, tactic) => {
+            return `<div class="card">
+                <h3>Current Formation: ${tactic.formation}</h3>
+                <div class="pitch">
+                    ${tactic.startingXI.map(p => {
+                        const playerInfo = players.find(pl => pl.id === p.id);
+                        if (!playerInfo) return '';
+                        return `<div class="player-on-pitch" style="--pos: ${p.pos};">
+                                    <div class="avatar" style="background-image: url('${playerInfo.photoUrl}')" title="${playerInfo.name}"></div>
+                                    <div class="name">${playerInfo.name.split(' ').pop()}</div>
+                                </div>`;
+                    }).join('')}
+                </div>
+            </div>`;
+        },
+        
+        createScoutPitch: (players) => {
+            const formation = '4-3-3 (Best XI)';
+            const positions = { gk: null, rb: null, cb1: null, cb2: null, lb: null, cdm: null, cm1: null, cm2: null, rw: null, st: null, lw: null };
+            let availablePlayers = [...players];
+            
+            // Basic algorithm to fill positions with highest rated players
+            Object.keys(positions).forEach(posKey => {
+                let bestPlayerIndex = -1;
+                let bestRating = -1;
+                
+                availablePlayers.forEach((p, index) => {
+                    if (p.gridArea === posKey && p.rating > bestRating) {
+                        bestRating = p.rating;
+                        bestPlayerIndex = index;
+                    }
+                });
+                
+                if (bestPlayerIndex !== -1) {
+                    positions[posKey] = availablePlayers[bestPlayerIndex];
+                    availablePlayers.splice(bestPlayerIndex, 1);
+                }
+            });
+
+            return `<div class="card">
+                <h3>${formation}</h3>
+                <div class="pitch">
+                    ${Object.entries(positions).map(([pos, playerInfo]) => {
+                        if (!playerInfo) return `<div class="player-on-pitch" style="--pos: ${pos};"><div class="avatar" style="background-color: rgba(255,255,255,0.2);"></div></div>`;
+                        return `<div class="player-on-pitch" style="--pos: ${pos};">
+                                    <div class="avatar" style="background-image: url('${playerInfo.photoUrl}')" title="${playerInfo.name} - Rating: ${playerInfo.rating}"></div>
+                                    <div class="name">${playerInfo.name.split(' ').pop()}</div>
+                                </div>`;
+                    }).join('')}
+                </div>
+            </div>`;
+        },
+    };
+
+    // --- PAGE RENDERERS ---
+    const Renderers = {
+        home: (data, subPage) => {
+            if (subPage === 'dashboard') {
+                DOM.mainContentArea.innerHTML = `
+                <div class="home-grid">
+                    <div class="main-column" style="display: flex; flex-direction: column; gap: 24px;">
+                        <div class="panel"><div class="panel-header">Actionable Items</div><div class="panel-content">${data.actionableNotifications.map(n => `<div class="list-item"><div class="list-item-body"><div class="list-item-title">${n.title}</div><div class="list-item-subtitle">${n.type} · Due: ${n.dueDate}</div></div><span class="status-pill ${n.urgency}">${n.urgency}</span></div>`).join('')}</div></div>
+                        <div class="panel"><div class="panel-header">League Table</div><div style="overflow-x:auto;"><table class="data-table"><thead><tr><th>Pos</th><th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>Pts</th></tr></thead><tbody>
+                        ${data.leagueTable.map(t => `<tr class="${t.teamName === 'NovaScore FC' ? 'my-team' : ''}"><td>${t.position}</td><td><img src="${t.logoUrl === 'special_badge' ? 'https://cdn-icons-png.flaticon.com/512/3063/3063223.png' : t.logoUrl}" class="table-player-avatar" style="width:24px;height:24px;margin-right:8px;" />${t.teamName}</td><td>${t.played}</td><td>${t.won}</td><td>${t.drawn}</td><td>${t.lost}</td><td>${t.goalDifference}</td><td><strong>${t.points}</strong></td></tr>`).join('')}
+                        </tbody></table></div></div>
+                    </div>
+                    <div class="right-column" style="display: flex; flex-direction: column; gap: 24px;">
+                        <div class="card">
+                           <h3 style="margin:0 0 16px;">Next Match: ${data.nextMatch.competition}</h3>
+                           <div style="display: flex; justify-content: space-around; align-items: center; margin-bottom: 16px;"><div style="text-align:center;"><div style="font-size: 48px;">⚽</div><span style="font-weight:600;">NovaScore FC</span></div><span style="font-size: 24px; font-weight: 200; color: var(--text-light);">VS</span><div style="text-align:center;"><img src="${data.nextMatch.opponentLogoUrl}" class="table-player-avatar" style="width: 56px; height: 56px;margin:0 auto 4px;" /><span style="font-weight:600;">${data.nextMatch.opponentName}</span></div></div>
+                           <p style="font-size: 14px; color: var(--text-light); border-top: 1px solid var(--border-color); padding-top: 16px; margin: 0;">${data.nextMatch.date} at ${data.nextMatch.time} (${data.nextMatch.venue})</p>
+                        </div>
+                        <div class="panel"><div class="panel-header">Medical Room</div><div class="panel-content">${data.medicalSummary.map(p => `<div class="list-item"><div class="list-item-body"><div class="list-item-title">${p.playerName}</div><div class="list-item-subtitle">${p.injuryType} · ${p.expectedReturn}</div></div></div>`).join('')}</div></div>
+                    </div>
+                </div>`;
+            } else if (subPage === 'calendar') {
+                let daysHtml = Array.from({length: 30}, (_, i) => { const day = i + 1; const events = data.calendarEvents.filter(e => e.day === day); return `<div class="calendar-day"><div class="day-number">${day}</div>${events.map(e => `<div class="calendar-event event-${e.type}">${e.title}</div>`).join('')}</div>`; }).join('');
+                DOM.mainContentArea.innerHTML = `<style>.calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); border: 1px solid var(--border-color); border-radius: 8px; } .calendar-header { text-align: center; padding: 12px; font-weight: 600; color: var(--text-light); } .calendar-day { border-right: 1px solid var(--border-color); border-top: 1px solid var(--border-color); padding: 8px; min-height: 120px; } .calendar-day:nth-child(7n) { border-right: none; } .calendar-day .day-number { font-weight: 600; } .calendar-event { font-size: 12px; padding: 4px 6px; border-radius: 4px; margin-top: 4px; } .event-match { background: #DBEAFE; color: #1E40AF; } .event-training { background: #F0FDF4; color: #15803D; } .event-media { background: #FEFCE8; color: #A16207; }</style><div class="card"><h3>November 2024</h3><div class="calendar-grid"><div class="calendar-header">Sun</div><div class="calendar-header">Mon</div><div class="calendar-header">Tue</div><div class="calendar-header">Wed</div><div class="calendar-header">Thu</div><div class="calendar-header">Fri</div><div class="calendar-header">Sat</div>${daysHtml}</div></div>`;
+            } else if (subPage === 'reports') {
+                DOM.mainContentArea.innerHTML = `<div class="panel"><div class="panel-header">Internal Reports</div><div class="panel-content">${data.reports.map(r => `<div class="list-item"><div class="list-item-body"><div class="list-item-title">${r.title}</div><div class="list-item-subtitle">${r.author} · ${r.date}</div></div><button style="background:none;border:none;cursor:pointer;">→</button></div>`).join('')}</div></div>`;
+            }
+        },
+        squad: (data, subPage) => {
+            if (subPage === 'list') {
+                DOM.mainContentArea.innerHTML = `<div class="panel" id="player-list-container">${UI.createPlayerTable(data.players, State.squadSort.key, State.squadSort.dir)}</div>`;
+            } else if (subPage === 'tactics') {
+                DOM.mainContentArea.innerHTML = UI.createPitch(data.players, data.tactic);
+            } else if (subPage === 'analysis') {
+                const playerOptions = data.players.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+                DOM.mainContentArea.innerHTML = `
+                    <div class="card">
+                        <h3 style="margin-top:0;">Player Comparison</h3>
+                        <div class="analysis-grid">
+                            <div class="comparison-selector">
+                                <label for="player1-select">Player 1</label>
+                                <select id="player1-select" data-player="1">${playerOptions}</select>
+                            </div>
+                            <div class="comparison-selector">
+                                <label for="player2-select">Player 2</label>
+                                <select id="player2-select" data-player="2">${playerOptions}</select>
+                            </div>
+                        </div>
+                        <div id="comparison-content" style="margin-top: 24px;"></div>
+                    </div>
+                    <div class="panel" style="margin-top: 24px;">
+                        <div class="panel-header">Team Analysis</div>
+                        <div class="panel-content" style="padding-top:24px;">
+                            <div class="analysis-grid">
+                                <div class="chart-container"><canvas id="offensiveChart"></canvas></div>
+                                <div class="chart-container"><canvas id="defensiveChart"></canvas></div>
+                            </div>
+                        </div>
+                    </div>`;
+
+                // Initial comparison render
+                document.getElementById('player2-select').selectedIndex = 1;
+                Renderers.updateSquadComparison(data.players);
+                
+                // Render team charts
+                UI.createRadarChart('offensiveChart', data.teamAnalysis.offensive);
+                UI.createRadarChart('defensiveChart', data.teamAnalysis.defensive);
+            }
+        },
+        updateSquadComparison: (players) => {
+            const p1Id = document.getElementById('player1-select').value;
+            const p2Id = document.getElementById('player2-select').value;
+            const player1 = players.find(p => p.id == p1Id);
+            const player2 = players.find(p => p.id == p2Id);
+
+            if (!player1 || !player2) return;
+            
+            const isGk = player1.position === 'Goalkeeper';
+            const techLabels = isGk ? ['Handling', 'Kicking', 'Passing'] : ['Dribbling', 'Shooting', 'Passing'];
+            const techData1 = isGk ? [player1.attributes.technical.handling, player1.attributes.technical.kicking, player1.attributes.technical.passing] : [player1.attributes.technical.dribbling, player1.attributes.technical.shooting, player1.attributes.technical.passing];
+            const techData2 = isGk ? [player2.attributes.technical.handling, player2.attributes.technical.kicking, player2.attributes.technical.passing] : [player2.attributes.technical.dribbling, player2.attributes.technical.shooting, player2.attributes.technical.passing];
+
+            const comparisonContent = document.getElementById('comparison-content');
+            comparisonContent.innerHTML = `
+                <div class="analysis-grid">
+                    <div class="chart-container"><canvas id="p1_technical"></canvas></div>
+                    <div class="chart-container"><canvas id="p2_physical"></canvas></div>
+                </div>
+                <table class="comparison-table">
+                    <tr><td>Name</td><td>${player1.name}</td><td>${player2.name}</td></tr>
+                    <tr><td>Age</td><td>${player1.age}</td><td>${player2.age}</td></tr>
+                    <tr><td>Position</td><td>${player1.position}</td><td>${player2.position}</td></tr>
+                    <tr><td>Rating</td><td>${player1.performance.rating}</td><td>${player2.performance.rating}</td></tr>
+                </table>`;
+            
+            UI.createRadarChart('p1_technical', {
+                labels: techLabels,
+                datasets: [
+                    { label: player1.name, data: techData1, backgroundColor: 'rgba(17, 24, 39, 0.2)', borderColor: 'rgba(17, 24, 39, 1)' },
+                    { label: player2.name, data: techData2, backgroundColor: 'rgba(107, 114, 128, 0.2)', borderColor: 'rgba(107, 114, 128, 1)' }
+                ]
+            });
+            UI.createRadarChart('p2_physical', {
+                labels: ['Agility', 'Speed', 'Composure', 'Positioning', 'Vision'],
+                datasets: [
+                    { label: player1.name, data: [player1.attributes.physical.agility, player1.attributes.physical.speed, player1.attributes.mental.composure, player1.attributes.mental.positioning, player1.attributes.mental.vision], backgroundColor: 'rgba(17, 24, 39, 0.2)', borderColor: 'rgba(17, 24, 39, 1)' },
+                    { label: player2.name, data: [player2.attributes.physical.agility, player2.attributes.physical.speed, player2.attributes.mental.composure, player2.attributes.mental.positioning, player2.attributes.mental.vision], backgroundColor: 'rgba(107, 114, 128, 0.2)', borderColor: 'rgba(107, 114, 128, 1)' }
+                ]
+            });
+        },
+        scouting: (data, subPage) => {
+            let content = '';
+            if (subPage === 'dashboard') {
+                content = `<div class="page-grid">
+                    <div class="panel"><div class="panel-header">Priority Tasks</div><div class="panel-content">${data.tasks.map(t => `<div class="list-item"><div class="list-item-body"><div class="list-item-title">${t.title}</div><div class="list-item-subtitle">${t.category}</div></div></div>`).join('')}</div></div>
+                    <div class="panel"><div class="panel-header">Scout Network Activity</div><div class="panel-content">${data.scoutNetwork.map(s => `<div class="list-item"><div class="list-item-title">${s.name}</div><div class="list-item-subtitle">${s.region}</div><div style="margin-left:auto;">${s.targets} Targets</div></div>`).join('')}</div></div>
+                </div>`;
+            } else if (subPage === 'shadow_team') {
+                const tableContent = `<div class="panel"><div class="panel-header">Shadow Team</div><div style="overflow-x:auto;"><table class="data-table"><thead><tr><th>Name</th><th>Position</th><th>Age</th><th>Club</th><th>Scout Rating</th></tr></thead><tbody>${data.shadowTeam.map(p => `<tr><td><div class="table-player-cell"><img src="${p.photoUrl}" class="table-player-avatar" alt="${p.name}">${p.name}</div></td><td>${p.position}</td><td>${p.age}</td><td>${p.club}</td><td><strong>${p.rating}</strong></td></tr>`).join('')}</tbody></table></div></div>`;
+                const pitchContent = UI.createScoutPitch(data.shadowTeam);
+
+                content = `
+                    <div class="panel-header" style="background:var(--background-white); padding: 16px; border-radius: 12px 12px 0 0; border: 1px solid var(--border-color); border-bottom: none; margin-bottom: -1px;">
+                        <div>View</div>
+                        <div class="segmented-control" id="scouting-view-toggle">
+                            <button class="active" data-view="table">Table</button>
+                            <button data-view="pitch">Pitch</button>
+                        </div>
+                    </div>
+                    <div id="scouting-content-area">
+                        ${tableContent}
+                    </div>
+                `;
+                // We'll add an event listener to handle the toggle
+                setTimeout(() => { // ensure elements are in DOM
+                    document.getElementById('scouting-view-toggle').addEventListener('click', e => {
+                        const btn = e.target.closest('button');
+                        if (!btn) return;
+                        document.querySelectorAll('#scouting-view-toggle button').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                        document.getElementById('scouting-content-area').innerHTML = btn.dataset.view === 'table' ? tableContent : pitchContent;
+                    });
+                }, 0);
+            } else if (subPage === 'network') {
+                content = `<div class="panel"><div class="panel-header">Scout Network</div><div class="panel-content">${data.scoutNetwork.map(s => `<div class="list-item"><div class="list-item-title">${s.name}</div><div class="list-item-subtitle">${s.region}</div><div style="margin-left:auto;">${s.targets} Active Targets</div></div>`).join('')}</div></div>`;
+            }
+            DOM.mainContentArea.innerHTML = UI.createStatCards(data.stats) + `<div style="margin-top: 24px;">${content}</div>`;
+        },
+        finance: (data, subPage) => {
+             let content = '';
+            if (subPage === 'overview') {
+                content = UI.createStatCards(data.summary);
+            } else if (subPage === 'income_expense') {
+                content = `<div class="analysis-grid">
+                    <div class="card"><div class="chart-container" style="height:400px;"><canvas id="incomeChart"></canvas></div></div>
+                    <div class="card"><div class="chart-container" style="height:400px;"><canvas id="expenseChart"></canvas></div></div>
+                </div>`;
+                setTimeout(() => {
+                    UI.createDonutChart('incomeChart', { labels: data.income.map(i => i.source), datasets: [{ data: data.income.map(i => i.amount), backgroundColor: ['#1F2937', '#374151', '#4B5563', '#6B7280'] }] }, 'Revenue Streams');
+                    UI.createDonutChart('expenseChart', { labels: data.expenses.map(e => e.category), datasets: [{ data: data.expenses.map(e => e.amount), backgroundColor: ['#991B1B', '#B91C1C', '#DC2626', '#EF4444'] }] }, 'Expense Breakdown');
+                }, 0);
+            } else if (subPage === 'budgets') {
+                const wagePercent = (data.budgets.wage.used / data.budgets.wage.total) * 100;
+                const transferPercent = (data.budgets.transfer.used / data.budgets.transfer.total) * 100;
+                content = `<div class="card">
+                    <h3 style="margin-top:0;">Budget Allocation</h3>
+                    <div style="margin-bottom: 24px;">
+                        <div style="display:flex; justify-content: space-between; margin-bottom: 8px; font-weight: 500;"><span>Wage Budget</span><span>${Utils.formatCurrency(data.budgets.wage.used)} / ${Utils.formatCurrency(data.budgets.wage.total)}</span></div>
+                        <div class="budget-bar"><div class="budget-bar-inner" style="width: ${wagePercent}%"></div></div>
+                    </div>
+                    <div>
+                        <div style="display:flex; justify-content: space-between; margin-bottom: 8px; font-weight: 500;"><span>Transfer Budget</span><span>${Utils.formatCurrency(data.budgets.transfer.used)} / ${Utils.formatCurrency(data.budgets.transfer.total)}</span></div>
+                        <div class="budget-bar"><div class="budget-bar-inner" style="width: ${transferPercent}%"></div></div>
+                    </div>
+                </div>`;
+            }
+            DOM.mainContentArea.innerHTML = content;
+        },
+        medical: (data, subPage) => {
+            let content = '';
+            if (subPage === 'overview') {
+                content = `<div class="panel"><div class="panel-header">Full Injury List</div><div class="panel-content">${data.injuredList.map(p => `<div class="list-item"><div class="list-item-body"><div class="list-item-title">${p.name}</div><div class="list-item-subtitle">${p.injury} · Est. Return: ${p.returnDate}</div></div><span class="status-pill ${p.statusClass}">${p.status}</span></div>`).join('')}</div></div>`;
+            } else if (subPage === 'load_management') {
+                content = `<div class="panel"><div class="panel-header">Player Load & Injury Risk</div><div style="overflow-x:auto;"><table class="data-table"><thead><tr><th>Player</th><th>Load Level</th><th>Games (Season)</th><th>Injury Risk</th></tr></thead><tbody>
+                ${data.playerLoad.map(p => `<tr><td>${p.name}</td><td>${p.load}</td><td>${p.gamesPlayed}</td><td><span class="status-pill ${p.risk}">${p.risk}</span></td></tr>`).join('')}
+                </tbody></table></div></div>`;
+            }
+             DOM.mainContentArea.innerHTML = UI.createStatCards(data.stats) + `<div style="margin-top: 24px;">${content}</div>`;
+        },
+        user: (data) => { DOM.mainContentArea.innerHTML = `<div class="card" style="display: flex; align-items: center; gap: 24px;"><img src="${data.profile.avatarUrl}" style="width: 96px; height: 96px; border-radius: 50%;"><div<div><h2 style="margin: 0;">${data.profile.name}</h2><p style="margin: 4px 0 0; color: var(--text-light);">${data.profile.role} · ${data.profile.email}</p></div></div><div class="panel" style="margin-top: 24px;"><div class="panel-header">Recent Activity</div><div class="panel-content">${data.activity.map(a => `<div class="list-item"><div class="list-item-title">${a.action}</div><div class="list-item-subtitle" style="margin-left:auto;">${a.timestamp}</div></div>`).join('')}</div></div>`; }
+    };
+
+    // --- MAIN APP CONTROLLER ---
+    const App = {
+        init: () => {
+            App.loadContent('home');
+            App.addEventListeners();
+        },
+
+        loadContent: (pageName, subPage) => {
+            // If only subpage changes, perform a partial re-render
+            if (pageName === State.currentPage && subPage && subPage !== State.currentSubPage) {
+                State.currentSubPage = subPage;
+                const data = API.getData(pageName);
+                UI.destroyAllCharts();
+                Renderers[pageName](data, subPage);
+                document.querySelectorAll('#headerSubnav a').forEach(a => a.classList.remove('active'));
+                document.querySelector(`#headerSubnav a[data-subpage='${subPage}']`).classList.add('active');
+                return;
+            }
+
+            // Full page load
+            State.currentPage = pageName;
+            State.currentSubPage = subPage || (Config.pageConfig[pageName] ? Object.keys(Config.pageConfig[pageName])[0] : null);
+            UI.destroyAllCharts();
+            
+            // Update UI
+            document.querySelectorAll('.sidebar .nav-item').forEach(l => l.classList.remove('active'));
+            document.querySelector(`a[data-page='${pageName}']`).classList.add('active');
+            DOM.pageTitle.textContent = Config.pageTitles[pageName] || 'Page';
+            
+            // Render Subnav
+            const subpages = Config.pageConfig[pageName];
+            DOM.subnavContainer.innerHTML = '';
+            if (subpages) {
+                DOM.subnavContainer.style.display = 'flex';
+                DOM.subnavContainer.innerHTML = Object.keys(subpages).map(key => `<a href="#" class="${State.currentSubPage === key ? 'active' : ''}" data-subpage="${key}">${subpages[key]}</a>`).join('');
+            } else {
+                DOM.subnavContainer.style.display = 'none';
+            }
+
+            // Render Main Content
+            const data = API.getData(pageName);
+            if (Renderers[pageName]) {
+                Renderers[pageName](data, State.currentSubPage);
+            } else {
+                DOM.mainContentArea.innerHTML = `<div class="card"><p>Page not found.</p></div>`;
+            }
+        },
+
+        addEventListeners: () => {
+            document.querySelector('.sidebar').addEventListener('click', e => {
+                const navItem = e.target.closest('.nav-item[data-page]');
+                if (navItem) { e.preventDefault(); App.loadContent(navItem.dataset.page); }
+                if(window.innerWidth <= 1024) DOM.sidebar.classList.remove('is-open');
+            });
+
+            DOM.subnavContainer.addEventListener('click', e => {
+                const subpageLink = e.target.closest('a[data-subpage]');
+                if (subpageLink) { e.preventDefault(); App.loadContent(State.currentPage, subpageLink.dataset.subpage); }
+            });
+
+            DOM.mainContentArea.addEventListener('click', e => {
+                // Squad List Sorting
+                const sortBtn = e.target.closest('.squad-controls button[data-sort]');
+                if(sortBtn) {
+                    const newSortKey = sortBtn.dataset.sort;
+                    if (State.squadSort.key === newSortKey) {
+                        State.squadSort.dir = State.squadSort.dir === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        State.squadSort.key = newSortKey;
+                        State.squadSort.dir = 'desc';
+                    }
+                    document.getElementById('player-list-container').innerHTML = UI.createPlayerTable(API.getData('squad').players, State.squadSort.key, State.squadSort.dir);
+                }
+            });
+            
+            DOM.mainContentArea.addEventListener('change', e => {
+                // Squad Analysis Player Selectors
+                if(e.target.matches('#player1-select') || e.target.matches('#player2-select')) {
+                    Renderers.updateSquadComparison(API.getData('squad').players);
+                }
+            });
+
+            DOM.menuToggle.addEventListener('click', () => {
+                DOM.sidebar.classList.toggle('is-open');
+            });
+        }
+    };
+
+    // --- INITIALIZE THE APPLICATION ---
+    window.onload = App.init;
+    </script>
+</body>
+</html>
